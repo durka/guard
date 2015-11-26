@@ -1,7 +1,14 @@
 [package]
 name = "guard"
 version = "0.1.0"
-authors = ["Alex Burka <aburka@seas.upenn.edu>"]
+authors = ["Alex Burka <rust@alexburka.com>"]
+
+description = "Macro implementation of RFC 1303"
+homepage = "https://github.com/durka/guard"
+repository = "https://github.com/durka/guard"
+readme = "README.md"
+license = "MIT"
+keywords = ["guard", "let", "else", "1303"]
 
 [features]
 nightly = []
