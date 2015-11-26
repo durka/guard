@@ -6,6 +6,34 @@
                                                    ))]
 
 #![cfg_attr(feature = "debug", feature(trace_macros))]
+
+//!  This crate exports a macro which implements most of [RFC 1303](https://github.com/rust-lang/rfcs/pull/1303) (a "let-else" or "guard" expression as you can find in Swift).
+//!
+//! The syntax proposed in the RFC was `if !let PAT = EXPR { BODY }` or `let PAT = EXPR else { BODY }` (where `BODY` _must_ diverge). Due to implementation details, this macro has the rather awkward syntax `guard!({ BODY } unless EXPR => PAT)`. Alternative syntaxes may be added in the future.
+//!
+//! Example usage:
+//!
+//! ```rust
+//! #[macro_use] extern crate guard;
+//! use std::env;
+//! 
+//! fn main() {
+//!     // read configuration from a certain environment variable
+//!     // do nothing if the variable is missing
+//!     guard!({ return } unless env::var("FOO") => Ok(foo));
+//! 
+//!     println!("FOO = {}", foo);
+//! }
+//! ```
+//!
+//! ## Limitations
+//! 
+//! 1. Expressions in the pattern are _not_ supported. This is a limitation of the current Rust macro system -- I'd like to say "parse an identifier in this position, but if that fails try parsing an expression" but this is is impossible; I can only test for _specific_ identifiers. It's easy to get around this restriction: use a pattern guard (as in `match`) instead.
+//! 2. Empty, un-namespaced enum variants and structs cause the expansion to fail, because the macro thinks they are identifiers. It's possible to get around this as well, though an open PR is aiming to take away the easiest workaround:
+//!    a. For empty enum variants, use `Empty(..)` until [#29383](rust-lang/rust#29383) lands, after that include the enum name as in `Enum::Empty`.
+//!    b. For unit-like structs, use `Empty(..)` until [#29383](rust-lang/rust#28393) lands, after that namespace it as in `namespace::Empty`, or use `Empty{}` (requires `#![feature(braced_empty_structs)]`).
+//! 3. `PAT` cannot be irrefutable. This is the same behavior as `if let` and `match`, and it's useless to write a guard with an irrefutable pattern anyway (you can just use `let`), so this shouldn't be an issue. This is slightly more annoying than it could be due to limitation #1. Nonetheless, if [#14252](rust-lang/rust#14252) is ever fixed, irrefutable patterns could be allowed by inserting a no-op pattern guard into the expansion.
+
 #[cfg(feature = "debug")]
 trace_macros!(true);
 
@@ -16,7 +44,7 @@ macro_rules! __guard_impl {
 
     (@collect () -> (($($imms:ident)*) ($($muts:ident)*)), [($($guard:tt)*) ($($pattern:tt)*) ($rhs:expr) ($diverge:expr)]) => {
         // FIXME after #29850 lands, try putting #[allow(unused_mut)] in here somewhere
-        guard!(@as_stmt
+        __guard_impl!(@as_stmt
                let ($($imms,)* $(mut $muts,)*) = match $rhs {
                                                     $($pattern)* $($guard)*
                                                                  // ^ this defeats the "unreachable pattern" error
@@ -31,74 +59,85 @@ macro_rules! __guard_impl {
     };
 
     (@collect (($($inside:tt)*) $($tail:tt)*) -> $idents:tt, $thru:tt) => {
-        guard!(@collect ($($inside)* $($tail)*) -> $idents, $thru)
+        __guard_impl!(@collect ($($inside)* $($tail)*) -> $idents, $thru)
     };
     (@collect ({$($inside:tt)*} $($tail:tt)*) -> $idents:tt, $thru:tt) => {
-        guard!(@collect ($($inside)* $($tail)*) -> $idents, $thru)
+        __guard_impl!(@collect ($($inside)* $($tail)*) -> $idents, $thru)
     };
     (@collect ([$($inside:tt)*] $($tail:tt)*) -> $idents:tt, $thru:tt) => {
-        guard!(@collect ($($inside)* $($tail)*) -> $idents, $thru)
+        __guard_impl!(@collect ($($inside)* $($tail)*) -> $idents, $thru)
     };
     (@collect (, $($tail:tt)*) -> $idents:tt, $thru:tt) => {
-        guard!(@collect ($($tail)*) -> $idents, $thru)
+        __guard_impl!(@collect ($($tail)*) -> $idents, $thru)
     };
     (@collect (.. $($tail:tt)*) -> $idents:tt, $thru:tt) => {
-        guard!(@collect ($($tail)*) -> $idents, $thru)
+        __guard_impl!(@collect ($($tail)*) -> $idents, $thru)
     };
     (@collect (@ $($tail:tt)*) -> $idents:tt, $thru:tt) => {
-        guard!(@collect ($($tail)*) -> $idents, $thru)
+        __guard_impl!(@collect ($($tail)*) -> $idents, $thru)
     };
     (@collect (_ $($tail:tt)*) -> $idents:tt, $thru:tt) => {
-        guard!(@collect ($($tail)*) -> $idents, $thru)
+        __guard_impl!(@collect ($($tail)*) -> $idents, $thru)
     };
     (@collect (& $($tail:tt)*) -> $idents:tt, $thru:tt) => {
-        guard!(@collect ($($tail)*) -> $idents, $thru)
+        __guard_impl!(@collect ($($tail)*) -> $idents, $thru)
     };
     (@collect (:: $pathend:ident $($tail:tt)*) -> $idents:tt, $thru:tt) => { // due to #27832 this has to be before the ident arms instead of near the $pathcomp arm
-        guard!(@collect ($($tail)*) -> $idents, $thru)
+        __guard_impl!(@collect ($($tail)*) -> $idents, $thru)
     };
     (@collect (| $($tail:tt)*) -> $idents:tt, $thru:tt) => {
-        guard!(@collect () -> $idents, $thru) // all the bindings on either side of | must be the same, so we don't have to parse the rest
+        __guard_impl!(@collect () -> $idents, $thru) // all the bindings on either side of | must be the same, so we don't have to parse the rest
     };
     (@collect (if $($tail:tt)*) -> $idents:tt, [$guard:tt $($rest:tt)*]) => {
-        guard!(@collect () -> $idents, [() $($rest)*])
+        __guard_impl!(@collect () -> $idents, [() $($rest)*])
     };
     (@collect ($id:ident: $($tail:tt)*) -> $idents:tt, $thru:tt) => {
-        guard!(@collect ($($tail)*) -> $idents, $thru)
+        __guard_impl!(@collect ($($tail)*) -> $idents, $thru)
     };
     (@collect ($pathcomp:ident :: $pathend:ident $($tail:tt)*) -> $idents:tt, $thru:tt) => {
-        guard!(@collect ($($tail)*) -> $idents, $thru)
+        __guard_impl!(@collect ($($tail)*) -> $idents, $thru)
     };
     (@collect ($id:ident ($($inside:tt)*) $($tail:tt)*) -> $idents:tt, $thru:tt) => {
-        guard!(@collect ($($inside)* $($tail)*) -> $idents, $thru)
+        __guard_impl!(@collect ($($inside)* $($tail)*) -> $idents, $thru)
     };
     (@collect ($id:ident {$($inside:tt)*} $($tail:tt)*) -> $idents:tt, $thru:tt) => {
-        guard!(@collect ($($inside)* $($tail)*) -> $idents, $thru)
+        __guard_impl!(@collect ($($inside)* $($tail)*) -> $idents, $thru)
     };
     (@collect (ref mut $id:ident $($tail:tt)*) -> (($($imms:ident)*) $muts:tt), $thru:tt) => {
-        guard!(@collect ($($tail)*) -> (($($imms)* $id) $muts), $thru)
+        __guard_impl!(@collect ($($tail)*) -> (($($imms)* $id) $muts), $thru)
     };
     (@collect (ref $id:ident $($tail:tt)*) -> (($($imms:ident)*) $muts:tt), $thru:tt) => {
-        guard!(@collect ($($tail)*) -> (($($imms)* $id) $muts), $thru)
+        __guard_impl!(@collect ($($tail)*) -> (($($imms)* $id) $muts), $thru)
     };
     (@collect (mut $id:ident $($tail:tt)*) -> ($imms:tt ($($muts:ident)*)), $thru:tt) => {
-        guard!(@collect ($($tail)*) -> ($imms ($($muts)* $id)), $thru)
+        __guard_impl!(@collect ($($tail)*) -> ($imms ($($muts)* $id)), $thru)
     };
     (@collect (box $id:ident $($tail:tt)*) -> (($($imms:ident)*) $muts:tt), $thru:tt) => {
-        guard!(@collect ($($tail)*) -> (($($imms)* $id) $muts), $thru)
+        __guard_impl!(@collect ($($tail)*) -> (($($imms)* $id) $muts), $thru)
     };
     (@collect ($id:ident $($tail:tt)*) -> (($($imms:ident)*) $muts:tt), $thru:tt) => {
-        guard!(@collect ($($tail)*) -> (($($imms)* $id) $muts), $thru)
+        __guard_impl!(@collect ($($tail)*) -> (($($imms)* $id) $muts), $thru)
     };
+
+    ({ $($diverge:tt)* } unless $rhs:expr => $($pattern:tt)*) => {
+        __guard_impl!(@collect ($($pattern)*) -> (() ()), [() ($($pattern)*) ($rhs) ({$($diverge)*})])
+        // FIXME once #14252 is fixed, put "if true" in as the default guard to defeat E0008
+    }
 }
 
 /// Match a pattern to an expression, binding identifiers in the calling scope. Diverge if the
 /// match fails.
+///
+/// Inputs:
+/// - `diverge`: expression which is run if the match fails. Must diverge, or you will get a "match
+/// arms have incompatible types" error.
+/// - `rhs`: expression to match against the pattern
+/// - `pattern`: pattern. Most patterns are allowed, with a few limitations. See the module
+/// documentation for details.
 #[macro_export]
 macro_rules! guard {
     ({ $($diverge:tt)* } unless $rhs:expr => $($pattern:tt)*) => {
-        __guard_impl!(@collect ($($pattern)*) -> (() ()), [() ($($pattern)*) ($rhs) ({$($diverge)*})])
-        // FIXME once #14252 is fixed, put "if true" in as the default guard to defeat E0008
+        __guard_impl!({ $($diverge)* } unless $rhs => $($pattern)*)
     }
 }
 
