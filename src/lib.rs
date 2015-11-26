@@ -95,100 +95,98 @@ macro_rules! guard {
     }
 }
 
-#[derive(Debug)]
-enum Stuff {
-    A(Option<i32>, Option<i32>),
-    B { foo: Result<i32, i32>, bar: i32 },
-    C(i32),
-    D
-}
+#[cfg(test)]
+mod tests {
+    #[derive(Debug)]
+    enum Stuff {
+        A(Option<i32>, Option<i32>),
+        B { foo: Result<i32, i32>, bar: i32 },
+        C(i32),
+        D
+    }
 
-struct Point { x: i32, y: i32 }
-struct Person { name: Option<String> }
+    struct Point { x: i32, y: i32 }
+    struct Person { name: Option<String> }
 
-fn main() {
-    let origin = Point { x: 0, y: 0 };
-    let p = Some(Person { name: Some("Steve".to_owned()) });
-    let opt = Stuff::A(Some(42), Some(43));
-    let copt = Stuff::C(42);
-    let dopt = Stuff::D;
-    let mut thing = Stuff::B { foo: Ok(44), bar: 45 };
+    #[test]
+    fn various() {
+        let origin = Point { x: 0, y: 0 };
+        let p = Some(Person { name: Some("Steve".to_owned()) });
+        let opt = Stuff::A(Some(42), Some(43));
+        let copt = Stuff::C(42);
+        let dopt = Stuff::D;
+        let mut thing = Stuff::B { foo: Ok(44), bar: 45 };
 
-    guard!({ return } unless Some(&42) => Some(&x));                                println!("{}", x);
+        guard!({ return } unless Some(&42) => Some(&x));                                println!("{}", x);
 
-    guard!({ return } unless Stuff::C(42) => Stuff::B { bar, .. } | Stuff::C(bar)); println!("{}", bar);
+        guard!({ return } unless Stuff::C(42) => Stuff::B { bar, .. } | Stuff::C(bar)); println!("{}", bar);
 
-    guard!({ return } unless 42 => x);                                              println!("{}", x);
+        guard!({ return } unless 42 => x);                                              println!("{}", x);
 
-    guard!({ return } unless origin => Point { x, y });                             println!("{} {}", x, y);
+        guard!({ return } unless origin => Point { x, y });                             println!("{} {}", x, y);
 
-    guard!({ return } unless origin => Point { x: x1, y: y1 });                     println!("{} {}", x1, y1);
+        guard!({ return } unless origin => Point { x: x1, y: y1 });                     println!("{} {}", x1, y1);
 
-    guard!({ return } unless origin => Point { x, .. });                            println!("{}", x);
+        guard!({ return } unless origin => Point { x, .. });                            println!("{}", x);
 
-    guard!({ return } unless origin => Point { y: y1, .. });                        println!("{}", y1);
+        guard!({ return } unless origin => Point { y: y1, .. });                        println!("{}", y1);
 
-    // closest we can get to Point { x, y: 0 }
-    guard!({ return } unless origin => Point { x, y: _y } if _y == 0);              println!("{}", x);
+        // closest we can get to Point { x, y: 0 }
+        guard!({ return } unless origin => Point { x, y: _y } if _y == 0);              println!("{}", x);
 
-    guard!({ return } unless p => Some(Person { name: ref x @ Some(_), .. }));      println!("{:?}", x);
+        guard!({ return } unless p => Some(Person { name: ref x @ Some(_), .. }));      println!("{:?}", x);
 
-    guard!({ return } unless (Some(42), Some(43)) => (Some(x), Some(y)));           println!("{} {}", x, y);
+        guard!({ return } unless (Some(42), Some(43)) => (Some(x), Some(y)));           println!("{} {}", x, y);
 
-    guard!({ return } unless opt => Stuff::A(Some(x), Some(y)));                    println!("{} {}", x, y);
-    
-    guard!({ return } unless thing => Stuff::B { foo: Ok(ref mut x), .. });         *x += 1; println!("{}", x);
+        guard!({ return } unless opt => Stuff::A(Some(x), Some(y)));                    println!("{} {}", x, y);
+        
+        guard!({ return } unless thing => Stuff::B { foo: Ok(ref mut x), .. });         *x += 1; println!("{}", x);
 
-    guard!({ return } unless thing => self::Stuff::B { foo: Ok(mut x), .. });       x *= 2; println!("{}", x);
-    
-    guard!({ return } unless copt => Stuff::C(_));
+        guard!({ return } unless thing => self::Stuff::B { foo: Ok(mut x), .. });       x *= 2; println!("{}", x);
+        
+        guard!({ return } unless copt => Stuff::C(_));
 
-    guard!({ return } unless dopt => self::Stuff::D);
+        guard!({ return } unless dopt => self::Stuff::D);
+    }
 
-    // stuff that is changing
-    empty();
+    #[cfg(not(feature = "nightly"))]
+    #[test]
+    fn empty() {
+        use self::Stuff::D;
+        struct Empty;
 
-    // new stuff
-    nightly();
-}
+        let dopt = D;
 
-#[cfg(not(feature = "nightly"))]
-fn empty() {
-    use Stuff::D;
-    struct Empty;
+        guard!({ return } unless dopt => D(..));
+        guard!({ return } unless Empty => Empty(..));
+    }
 
-    let dopt = D;
+    #[cfg(feature = "nightly")]
+    #[test]
+    fn empty() {
+        use self::Stuff::D;
+        struct Empty;
 
-    guard!({ return } unless dopt => D(..));
-    guard!({ return } unless Empty => Empty(..));
-}
+        let dopt = D;
 
-#[cfg(feature = "nightly")]
-fn empty() {
-    use Stuff::D;
-    struct Empty;
+        guard!({ return } unless dopt => D(..));
+        guard!({ return } unless Empty => Empty{});
+    }
 
-    let dopt = D;
+    #[cfg(feature = "nightly")]
+    #[test]
+    fn nightly() {
+        let foo = (box 42, [1, 2, 3]);
 
-    guard!({ return } unless dopt => D(..));
-    guard!({ return } unless Empty => Empty{});
-}
+        // box patterns
+        guard!({ return } unless foo => (box x, _));                           println!("{}", x);
 
-#[cfg(not(feature = "nightly"))]
-fn nightly() {}
-
-#[cfg(feature = "nightly")]
-fn nightly() {
-    let foo = (box 42, [1, 2, 3]);
-
-    // box patterns
-    guard!({ return } unless foo => (box x, _));                           println!("{}", x);
-
-    // slice patterns
-    guard!({ return } unless foo => (_, [a, b, c]));                       println!("{} {} {}", a, b, c);
-    
-    // advanced slice patterns
-    guard!({ return } unless (foo.0, &foo.1) => (box x, &[head, tail..])); println!("{} {} {:?}", x, head, tail);
+        // slice patterns
+        guard!({ return } unless foo => (_, [a, b, c]));                       println!("{} {} {}", a, b, c);
+        
+        // advanced slice patterns
+        guard!({ return } unless (foo.0, &foo.1) => (box x, &[head, tail..])); println!("{} {} {:?}", x, head, tail);
+    }
 }
 
 // LIMITATIONS
