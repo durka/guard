@@ -9,10 +9,9 @@
 #[cfg(feature = "debug")]
 trace_macros!(true);
 
-/// Match a pattern to an expression, binding identifiers in the calling scope. Diverge if the
-/// match fails.
+#[doc(hidden)]
 #[macro_export]
-macro_rules! guard {
+macro_rules! __guard_impl {
     (@as_stmt $s:stmt) => { $s };
 
     (@collect () -> (($($imms:ident)*) ($($muts:ident)*)), [($($guard:tt)*) ($($pattern:tt)*) ($rhs:expr) ($diverge:expr)]) => {
@@ -91,9 +90,14 @@ macro_rules! guard {
     (@collect ($id:ident $($tail:tt)*) -> (($($imms:ident)*) $muts:tt), $thru:tt) => {
         guard!(@collect ($($tail)*) -> (($($imms)* $id) $muts), $thru)
     };
+}
 
+/// Match a pattern to an expression, binding identifiers in the calling scope. Diverge if the
+/// match fails.
+#[macro_export]
+macro_rules! guard {
     ({ $($diverge:tt)* } unless $rhs:expr => $($pattern:tt)*) => {
-        guard!(@collect ($($pattern)*) -> (() ()), [() ($($pattern)*) ($rhs) ({$($diverge)*})])
+        __guard_impl!(@collect ($($pattern)*) -> (() ()), [() ($($pattern)*) ($rhs) ({$($diverge)*})])
         // FIXME once #14252 is fixed, put "if true" in as the default guard to defeat E0008
     }
 }
