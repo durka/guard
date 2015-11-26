@@ -1,15 +1,17 @@
-#![cfg_attr(feature = "nightly", feature(braced_empty_structs,
-                                         box_syntax,
-                                         box_patterns,
-                                         slice_patterns,
-                                         advanced_slice_patterns
-                                        ))]
+#![cfg_attr(all(test, feature = "nightly"), feature(braced_empty_structs,
+                                                    box_syntax,
+                                                    box_patterns,
+                                                    slice_patterns,
+                                                    advanced_slice_patterns
+                                                   ))]
 
 #![cfg_attr(feature = "debug", feature(trace_macros))]
 #[cfg(feature = "debug")]
 trace_macros!(true);
 
-// strategy: scan the pattern for idents and pull them out, so we can create a let statement in the enclosing scope
+/// Match a pattern to an expression, binding identifiers in the calling scope. Diverge if the
+/// match fails.
+#[macro_export]
 macro_rules! guard {
     (@as_stmt $s:stmt) => { $s };
 
@@ -91,7 +93,8 @@ macro_rules! guard {
     };
 
     ({ $($diverge:tt)* } unless $rhs:expr => $($pattern:tt)*) => {
-        guard!(@collect ($($pattern)*) -> (() ()), [(if true == true) ($($pattern)*) ($rhs) ({$($diverge)*})])
+        guard!(@collect ($($pattern)*) -> (() ()), [() ($($pattern)*) ($rhs) ({$($diverge)*})])
+        // FIXME once #14252 is fixed, put "if true" in as the default guard to defeat E0008
     }
 }
 
@@ -105,7 +108,7 @@ mod tests {
         D
     }
 
-    struct Point { x: i32, y: i32 }
+    #[derive(Copy, Clone)] struct Point { x: i32, y: i32 }
     struct Person { name: Option<String> }
 
     #[test]
@@ -121,15 +124,15 @@ mod tests {
 
         guard!({ return } unless Stuff::C(42) => Stuff::B { bar, .. } | Stuff::C(bar)); println!("{}", bar);
 
-        guard!({ return } unless 42 => x);                                              println!("{}", x);
+        guard!({ return } unless Some(42) => Some(x));                                  println!("{}", x);
 
-        guard!({ return } unless origin => Point { x, y });                             println!("{} {}", x, y);
+        guard!({ return } unless Some(origin) => Some(Point { x, y }));                 println!("{} {}", x, y);
 
-        guard!({ return } unless origin => Point { x: x1, y: y1 });                     println!("{} {}", x1, y1);
+        guard!({ return } unless Some(origin) => Some(Point { x: x1, y: y1 }));         println!("{} {}", x1, y1);
 
-        guard!({ return } unless origin => Point { x, .. });                            println!("{}", x);
+        guard!({ return } unless Some(origin) => Some(Point { x, .. }));                println!("{}", x);
 
-        guard!({ return } unless origin => Point { y: y1, .. });                        println!("{}", y1);
+        guard!({ return } unless Some(origin) => Some(Point { y: y1, .. }));            println!("{}", y1);
 
         // closest we can get to Point { x, y: 0 }
         guard!({ return } unless origin => Point { x, y: _y } if _y == 0);              println!("{}", x);
@@ -158,7 +161,7 @@ mod tests {
         let dopt = D;
 
         guard!({ return } unless dopt => D(..));
-        guard!({ return } unless Empty => Empty(..));
+        guard!({ return } unless Some(Empty) => Some(Empty(..)));
     }
 
     #[cfg(feature = "nightly")]
@@ -170,31 +173,23 @@ mod tests {
         let dopt = D;
 
         guard!({ return } unless dopt => D(..));
-        guard!({ return } unless Empty => Empty{});
+        guard!({ return } unless Some(Empty) => Some(Empty{}));
     }
 
     #[cfg(feature = "nightly")]
     #[test]
     fn nightly() {
-        let foo = (box 42, [1, 2, 3]);
-
         // box patterns
-        guard!({ return } unless foo => (box x, _));                           println!("{}", x);
+        let foo = (box 42, [1, 2, 3]);
+        guard!({ return } unless Some(foo) => Some((box x, _)));                           println!("{}", x);
 
         // slice patterns
-        guard!({ return } unless foo => (_, [a, b, c]));                       println!("{} {} {}", a, b, c);
+        let foo = (box 42, [1, 2, 3]);
+        guard!({ return } unless Some(foo) => Some((_, [a, b, c])));                       println!("{} {} {}", a, b, c);
         
         // advanced slice patterns
-        guard!({ return } unless (foo.0, &foo.1) => (box x, &[head, tail..])); println!("{} {} {:?}", x, head, tail);
+        let foo = (box 42, [1, 2, 3]);
+        guard!({ return } unless Some((foo.0, &foo.1)) => Some((box x, &[head, tail..]))); println!("{} {} {:?}", x, head, tail);
     }
 }
-
-// LIMITATIONS
-// 1. no exprs (use guards, evade unused variable warning)
-// 2. no empty variants/structs
-//    a. variants: use Empty(..) until #29383 lands, after that Enum::Empty
-//    b. structs: use Empty(..) until #29383 lands, after that namespace::Empty or Empty{} (requires #![feature(braced_empty_structs)]
-//
-// NON-LIMITATIONS
-// 1. irrefutable patterns ok (unlike normal match/if-let)
 
