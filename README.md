@@ -36,6 +36,7 @@ There are a number of subtleties in the expansion to avoid various warning and p
 
 1. Expressions in the pattern are _not_ supported. This is a limitation of the current Rust macro system -- I'd like to say "parse an identifier in this position, but if that fails try parsing an expression" but this is is impossible; I can only test for _specific_ identifiers. It's easy to get around this restriction: use a pattern guard (as in `match`) instead.
 2. Empty, un-namespaced enum variants and structs cause the expansion to fail, because the macro thinks they are identifiers. It's possible to get around this as well, though an open PR is aiming to take away the easiest workaround:
+
    a. For empty enum variants, use `Empty(..)` until [#29383](https://github.com/rust-lang/rust/issues/29383) lands, after that include the enum name as in `Enum::Empty`.
    b. For unit-like structs, use `Empty(..)` until [#29383](https://github.com/rust-lang/rust/issues/28393) lands, after that namespace it as in `namespace::Empty`, or use `Empty{}` (requires `#![feature(braced_empty_structs)]`).
 3. `PAT` cannot be irrefutable. This is the same behavior as `if let` and `match`, and it's useless to write a guard with an irrefutable pattern anyway (you can just use `let`), so this shouldn't be an issue. This is slightly more annoying than it could be due to limitation #1. Nonetheless, if [#14252](https://github.com/rust-lang/rust/issues/14252) is ever fixed, irrefutable patterns could be allowed by inserting a no-op pattern guard into the expansion.
