@@ -22,7 +22,7 @@ fn main() {
 ## Cargo features
 
 - `nightly` enables nightly tests.
-- `debug` enable `trace_macros` for debugging. Requires a nightly compiler (but not this crate's `nightly` feature).
+- `debug` enables `trace_macros` for debugging. Requires a nightly compiler (but not this crate's `nightly` feature).
 
 ## How it works
 
