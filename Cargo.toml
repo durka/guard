@@ -8,7 +8,7 @@ homepage = "https://github.com/durka/guard"
 repository = "https://github.com/durka/guard"
 readme = "README.md"
 license = "MIT"
-keywords = ["guard", "let", "else", "1303"]
+keywords = ["guard", "if", "let", "else", "1303"]
 
 [features]
 nightly = []
