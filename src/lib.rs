@@ -111,6 +111,11 @@ macro_rules! __guard_impl {
     };
 
     // throw away some identifiers that do not represent captures
+    
+    // box destructuring
+    (@collect (box $($tail:tt)*) -> $idents:tt, $thru:tt) => {
+        __guard_impl!(@collect ($($tail)*) -> $idents, $thru)
+    };
 
     // an ident followed by a colon is the name of a structure member
     (@collect ($id:ident: $($tail:tt)*) -> $idents:tt, $thru:tt) => {
@@ -144,10 +149,6 @@ macro_rules! __guard_impl {
     // capture by move into mutable binding!
     (@collect (mut $id:ident $($tail:tt)*) -> ($imms:tt ($($muts:ident)*)), $thru:tt) => {
         __guard_impl!(@collect ($($tail)*) -> ($imms ($($muts)* $id)), $thru)
-    };
-    // destructure a box!
-    (@collect (box $id:ident $($tail:tt)*) -> (($($imms:ident)*) $muts:tt), $thru:tt) => {
-        __guard_impl!(@collect ($($tail)*) -> (($($imms)* $id) $muts), $thru)
     };
     // capture by move into an immutable binding!
     (@collect ($id:ident $($tail:tt)*) -> (($($imms:ident)*) $muts:tt), $thru:tt) => {
@@ -273,6 +274,17 @@ mod tests {
         // box patterns
         let foo = (box 42, [1, 2, 3]);
         guard!({ return } unless Some(foo) => Some((box x, _)));                           println!("{}", x);
+
+        let mut foo = Some((box 42, [1, 2, 3]));
+        {
+            guard!({ return } unless foo => Some((box ref x, _)));                         println!("{}", x);
+        }
+        {
+            guard!({ return } unless foo => Some((box ref mut x, _)));                     println!("{}", x);
+        }
+        {
+            guard!({ return } unless foo => Some((box mut x, _)));                         x -= 1; println!("{}", x);
+        }
 
         // slice patterns
         let foo = (box 42, [1, 2, 3]);
