@@ -40,8 +40,10 @@ trace_macros!(true);
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __guard_impl {
+    // 0. cast a series of token trees to a statement
     (@as_stmt $s:stmt) => { $s };
 
+    // 1. output stage
     (@collect () -> (($($imms:ident)*) ($($muts:ident)*)), [($($guard:tt)*) ($($pattern:tt)*) ($rhs:expr) ($diverge:expr)]) => {
         // FIXME after #29850 lands, try putting #[allow(unused_mut)] in here somewhere
         __guard_impl!(@as_stmt
@@ -58,6 +60,13 @@ macro_rules! __guard_impl {
               )
     };
 
+    // 2. identifier collection stage
+    //      The pattern is scanned destructively. Anything that looks like a capture (including
+    //      false positives, like un-namespaced/empty structs or enum variants) is copied into the
+    //      appropriate identifier list. Irrelevant symbols are discarded. The scanning descends
+    //      recursively into bracketed structures.
+
+    // unwrap brackets and prepend their contents to the pattern remainder, in case there are captures inside
     (@collect (($($inside:tt)*) $($tail:tt)*) -> $idents:tt, $thru:tt) => {
         __guard_impl!(@collect ($($inside)* $($tail)*) -> $idents, $thru)
     };
@@ -67,6 +76,8 @@ macro_rules! __guard_impl {
     (@collect ([$($inside:tt)*] $($tail:tt)*) -> $idents:tt, $thru:tt) => {
         __guard_impl!(@collect ($($inside)* $($tail)*) -> $idents, $thru)
     };
+
+    // discard irrelevant symbols
     (@collect (, $($tail:tt)*) -> $idents:tt, $thru:tt) => {
         __guard_impl!(@collect ($($tail)*) -> $idents, $thru)
     };
@@ -82,45 +93,82 @@ macro_rules! __guard_impl {
     (@collect (& $($tail:tt)*) -> $idents:tt, $thru:tt) => {
         __guard_impl!(@collect ($($tail)*) -> $idents, $thru)
     };
-    (@collect (:: $pathend:ident $($tail:tt)*) -> $idents:tt, $thru:tt) => { // due to #27832 this has to be before the ident arms instead of near the $pathcomp arm
+
+    // a path can't be a capture, and a path can't end with ::, so the ident after :: is never a capture
+    (@collect (:: $pathend:ident $($tail:tt)*) -> $idents:tt, $thru:tt) => {
         __guard_impl!(@collect ($($tail)*) -> $idents, $thru)
     };
+
+    // alternative patterns may be given with | as long as the same captures (including type) appear on each side
+    // due to this property, if we see a | we've already parsed all the captures and can simply stop
     (@collect (| $($tail:tt)*) -> $idents:tt, $thru:tt) => {
-        __guard_impl!(@collect () -> $idents, $thru) // all the bindings on either side of | must be the same, so we don't have to parse the rest
+        __guard_impl!(@collect () -> $idents, $thru) // discard the rest of the pattern, proceed to output stage
     };
+
+    // an explicitly provided pattern guard replaces the default, if there was one
     (@collect (if $($tail:tt)*) -> $idents:tt, [$guard:tt $($rest:tt)*]) => {
         __guard_impl!(@collect () -> $idents, [() $($rest)*])
     };
+
+    // throw away some identifiers that do not represent captures
+
+    // an ident followed by a colon is the name of a structure member
     (@collect ($id:ident: $($tail:tt)*) -> $idents:tt, $thru:tt) => {
         __guard_impl!(@collect ($($tail)*) -> $idents, $thru)
     };
+    // paths do not represent captures
     (@collect ($pathcomp:ident :: $pathend:ident $($tail:tt)*) -> $idents:tt, $thru:tt) => {
         __guard_impl!(@collect ($($tail)*) -> $idents, $thru)
     };
+    // an ident followed by parentheses is the name of a tuple-like struct or enum variant
+    // (unwrap the parens to parse the contents)
     (@collect ($id:ident ($($inside:tt)*) $($tail:tt)*) -> $idents:tt, $thru:tt) => {
         __guard_impl!(@collect ($($inside)* $($tail)*) -> $idents, $thru)
     };
+    // an ident followed by curly braces is the name of a struct or struct-like enum variant
+    // (unwrap the braces to parse the contents)
     (@collect ($id:ident {$($inside:tt)*} $($tail:tt)*) -> $idents:tt, $thru:tt) => {
         __guard_impl!(@collect ($($inside)* $($tail)*) -> $idents, $thru)
     };
+
+    // actualy identifier collection happens here!
+
+    // capture by mutable reference!
     (@collect (ref mut $id:ident $($tail:tt)*) -> (($($imms:ident)*) $muts:tt), $thru:tt) => {
         __guard_impl!(@collect ($($tail)*) -> (($($imms)* $id) $muts), $thru)
     };
+    // capture by immutable reference!
     (@collect (ref $id:ident $($tail:tt)*) -> (($($imms:ident)*) $muts:tt), $thru:tt) => {
         __guard_impl!(@collect ($($tail)*) -> (($($imms)* $id) $muts), $thru)
     };
+    // capture by move into mutable binding!
     (@collect (mut $id:ident $($tail:tt)*) -> ($imms:tt ($($muts:ident)*)), $thru:tt) => {
         __guard_impl!(@collect ($($tail)*) -> ($imms ($($muts)* $id)), $thru)
     };
+    // destructure a box!
     (@collect (box $id:ident $($tail:tt)*) -> (($($imms:ident)*) $muts:tt), $thru:tt) => {
         __guard_impl!(@collect ($($tail)*) -> (($($imms)* $id) $muts), $thru)
     };
+    // capture by move into an immutable binding!
     (@collect ($id:ident $($tail:tt)*) -> (($($imms:ident)*) $muts:tt), $thru:tt) => {
         __guard_impl!(@collect ($($tail)*) -> (($($imms)* $id) $muts), $thru)
     };
 
+    // entry point
     ({ $($diverge:tt)* } unless $rhs:expr => $($pattern:tt)*) => {
         __guard_impl!(@collect ($($pattern)*) -> (() ()), [() ($($pattern)*) ($rhs) ({$($diverge)*})])
+        //            |        |                 ||  |    ||  |              |      |
+        //            |        |                 ||  |    ||  |              |      ^ diverging expression
+        //            |        |                 ||  |    ||  |              ^ expression
+        //            |        |                 ||  |    ||  ^ saved copy of pattern
+        //            |        |                 ||  |    |^ pattern guard
+        //            |        |                 ||  |    ^ parameters that will be carried through to output stage
+        //            |        |                 ||  ^ identifiers bound to mutable captures
+        //            |        |                 |^ identifiers bound to immutable captures
+        //            |        |                 ^ identifiers found by the scan
+        //            |        ^ pattern to be destructively scanned for identifiers
+        //            ^ proceed to identifier collection stage
+
         // FIXME once #14252 is fixed, put "if true" in as the default guard to defeat E0008
     }
 }
