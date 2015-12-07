@@ -264,7 +264,7 @@ mod tests {
 
         let dopt = D;
 
-        guard!({ return } unless dopt => D(..));
+        guard!({ return } unless dopt => D{});
         guard!({ return } unless Some(Empty) => Some(Empty{}));
     }
 
