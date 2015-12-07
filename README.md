@@ -7,13 +7,14 @@ The syntax proposed in the RFC was `if !let PAT = EXPR { BODY }` or `let PAT = E
 ## Examples
 
 ```rust
+#![cfg_attr(feature = "nightly", feature(stmt_expr_attributes)]
 #[macro_use] extern crate guard;
 use std::env;
 
 fn main() {
     // read configuration from a certain environment variable
     // do nothing if the variable is missing
-    guard!({ return } unless env::var("FOO") => Ok(foo));
+    guard!(let Ok(foo) = env::var("FOO") else { return });
 
     println!("FOO = {}", foo);
 }
