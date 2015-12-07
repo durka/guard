@@ -189,6 +189,10 @@ macro_rules! __guard_impl {
         __guard_impl!(@collect ($($tail)*) -> $idents, $thru)
     };
 
+    // ignore generic parameters
+    (@collect (:: <$($generic:tt),*> $($tail:tt)*) -> $idents:tt, $thru:tt) => {
+        __guard_impl!(@collect ($($tail)*) -> $idents, $thru)
+    };
     // a path can't be a capture, and a path can't end with ::, so the ident after :: is never a capture
     (@collect (:: $pathend:ident $($tail:tt)*) -> $idents:tt, $thru:tt) => {
         __guard_impl!(@collect ($($tail)*) -> $idents, $thru)
@@ -400,8 +404,10 @@ mod tests {
         guard!({ return } unless (Some(42), Some(43)) => (Some(x), Some(y)));           println!("{} {}", x, y);
 
         guard!({ return } unless opt => Stuff::A(Some(x), Some(y)));                    println!("{} {}", x, y);
+
+        guard!({ return } unless opt => Stuff::A(Option::Some::<i32>(x), _));           println!("{}", x);
         
-        guard!({ return } unless thing => Stuff::B { foo: Ok(ref mut x), .. });         /* *x += 1;*/ println!("{}", x);
+        guard!({ return } unless thing => Stuff::B { foo: Ok(ref mut x), .. });         *x += 1; println!("{}", x);
 
         guard!({ return } unless thing => self::Stuff::B { foo: Ok(mut x), .. });       x *= 2; println!("{}", x);
         
