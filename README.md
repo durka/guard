@@ -31,7 +31,7 @@ fn main() {
 
 It's difficult to implement this behavior as a macro, because a `let` statement must be created in the enclosing scope. Besides that, it is desirable to avoid the necessity of repeating the identifiers bound by the pattern. The strategy used here is to scan the pattern for identifiers, and use that to construct a top-level `let` statement which internally uses a `match` to apply the pattern. This scanning is _almost_ possible -- see limitations #1 and #2 below.
 
-This strategy also means that `PAT` needs to be input to the macro as an unparsed sequence of token trees. There are two ways to take an unbounded sequence of token trees as input without causing ambiguity errors: put the token trees at the end (my current choice) or enclose them in brackets. The backwards invocation syntax is a result of this choice.
+This strategy also means that `PAT` needs to be input to the macro as an unparsed sequence of token trees. There are two ways to take an unbounded sequence of token trees as input without causing ambiguity errors: put the token trees at the end (my current choice) or enclose them in brackets. Originally, this choice resulted in a backwards invocation syntax. Since version 0.2.0, more convenient syntaxes are supported by adopting a two-pass parsing strategy: the macro essentially takes its entire input as a sequence of tokens, splits on `=` and `else`, then parses the results again.
 
 There are a number of subtleties in the expansion to avoid various warning and pitfalls; see the macro source for more details.
 
