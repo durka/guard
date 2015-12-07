@@ -17,6 +17,9 @@
 //!    would be ambiguous (consider `let foo = if bar { baz() } else { quux() }` -- is it a `let`
 //!    statement or a `let else` statement?), however in the context of this macro there is no
 //!    ambiguity because only `let else` statements are allowed.
+//!
+//!    A variation suggested in the RFC discussion, `guard!(let PAT else { BODY } = EXPR)`, is also
+//!    supported.
 //! 2. The older syntax, `guard!({ BODY } unless EXPR => PAT)`. This should be a little faster to
 //!    compile than the newer syntax, which requires an initial loop through the token stream to
 //!    separate the pattern, expression and body (the normal `macro_rules!` syntax is not quite
@@ -249,7 +252,12 @@ macro_rules! __guard_impl {
 
     // 3. splitting (for new syntax)
 
-    // done with pattern, move on to expr
+    // done with pattern (and it's LPED=X)
+    (@split (else { $($diverge:tt)* } = $($tail:tt)*) -> ($pat:tt $guard:tt)) => {
+        __guard_impl!(@collect $pat -> (() ()), [$guard $pat ($($tail)*) ({ $($diverge)* })])
+    };
+
+    // done with pattern (and it's LP=XED)
     (@split (= $($tail:tt)*) -> ($pat:tt $guard:tt)) => {
         __guard_impl!(@split expr ($($tail)*) -> ($pat $guard ()))
     };
@@ -323,7 +331,14 @@ macro_rules! __guard_impl {
 /// Match a pattern to an expression, binding identifiers in the calling scope. Diverge if the
 /// match fails.
 ///
+/// Supported syntaxes:
+///
+/// - let `pat` = `rhs` else `diverge`
+/// - let `pat` else `diverge` = `rhs`
+/// - { `diverge` } unless `rhs` => `pat`
+///
 /// Inputs:
+///
 /// - `diverge`: expression which is run if the match fails. Must diverge, or you will get a "match
 /// arms have incompatible types" error.
 /// - `rhs`: expression to match against the pattern
@@ -445,9 +460,15 @@ mod tests {
     fn new_syntax() {
         let opt = Some((1, 2));
 
+        // LP=XED
         guard!(let Some((a, b)) = opt else { panic!() });                           println!("{} {}", a, b);
         guard!(let Some((a, b)) = if true  { opt } else { opt } else { panic!() }); println!("{} {}", a, b);
         guard!(let Some((a, b)) = if false { opt } else { opt } else { panic!() }); println!("{} {}", a, b);
+
+        // LPED=X
+        guard!(let Some((a, b)) else { panic!() } = opt);                           println!("{} {}", a, b);
+        guard!(let Some((a, b)) else { panic!() } = if true  { opt } else { opt }); println!("{} {}", a, b);
+        guard!(let Some((a, b)) else { panic!() } = if false { opt } else { opt }); println!("{} {}", a, b);
     }
 }
 
