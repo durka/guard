@@ -267,9 +267,14 @@ macro_rules! __guard_impl {
         __guard_impl!(@split guard ($($tail)*) -> ($pat ()))
     };
 
-    // done with guard, move on to expr
+    // done with guard (and it's LP=XED)
     (@split guard (= $($tail:tt)*) -> ($pat:tt $guard:tt)) => {
         __guard_impl!(@split expr ($($tail)*) -> ($pat $guard ()))
+    };
+
+    // done with guard (and it's LPED=X)
+    (@split guard (else { $($diverge:tt)* } = $($tail:tt)*) -> ($pat:tt $guard:tt)) => {
+        __guard_impl!(@collect $pat -> (() ()), [$guard $pat ($($tail)*) ({ $($diverge)* })])
     };
 
     // found a token in the guard
@@ -464,11 +469,13 @@ mod tests {
         guard!(let Some((a, b)) = opt else { panic!() });                           println!("{} {}", a, b);
         guard!(let Some((a, b)) = if true  { opt } else { opt } else { panic!() }); println!("{} {}", a, b);
         guard!(let Some((a, b)) = if false { opt } else { opt } else { panic!() }); println!("{} {}", a, b);
+        guard!(let Some((a, b)) if b > 0 = opt else { panic!() });                  println!("{} {}", a, b);
 
         // LPED=X
         guard!(let Some((a, b)) else { panic!() } = opt);                           println!("{} {}", a, b);
         guard!(let Some((a, b)) else { panic!() } = if true  { opt } else { opt }); println!("{} {}", a, b);
         guard!(let Some((a, b)) else { panic!() } = if false { opt } else { opt }); println!("{} {}", a, b);
+        guard!(let Some((a, b)) if b > 0 else { panic!() } = opt);                  println!("{} {}", a, b);
     }
 }
 
