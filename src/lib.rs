@@ -103,14 +103,15 @@ macro_rules! __guard_output {
                                                            $($muts = $muts;)* // this defeats the "unused mut" warning
                                                            ($($imms,)* $($muts,)*)
                                                        } else {
-                                                           let _: $crate::LetElseBodyMustDiverge = $diverge;
-                                                           loop {}
+                                                           let _x: $crate::LetElseBodyMustDiverge = $diverge;
+                                                           match _x {}
                                                        }
                                                    },
 
                                                    _ => {
-                                                       let _: $crate::LetElseBodyMustDiverge = $diverge;
-                                                       loop {}
+                                                       let _x: $crate::LetElseBodyMustDiverge = $diverge;
+                                                       match _x {}
+                                                       // FIXME use the unreachable crate?
                                                    },
                }
               )
