@@ -421,12 +421,12 @@ mod tests {
     #[test]
     fn empty() {
         use self::Stuff::D;
-        struct Empty;
+        //struct Empty;
 
         let dopt = D;
 
         guard!({ return } unless dopt => D(..));
-        guard!({ return } unless Some(Empty) => Some(Empty(..)));
+        //guard!({ return } unless Some(Empty) => Some(Empty(..))); // FIXME broken by #29383
     }
 
     #[cfg(feature = "nightly")]
