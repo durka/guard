@@ -6,7 +6,7 @@ use std::env;
 fn main() {
     // read configuration from a certain environment variable
     // do nothing if the variable is missing
-    guard!({ return } unless env::var("FOO") => Ok(foo));
+    guard!(let Ok(foo) = env::var("FOO") else { return });
 
     println!("FOO = {}", foo);
 }
