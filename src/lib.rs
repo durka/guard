@@ -5,6 +5,7 @@
                                                     slice_patterns,
                                                     advanced_slice_patterns
                                                    ))]
+#![cfg_attr(all(test, not(feature = "nightly")), allow(match_of_unit_variant_via_paren_dotdot))]
 
 #![cfg_attr(feature = "debug", feature(trace_macros))]
 
@@ -73,11 +74,11 @@
 //!    PR is aiming to take away the easiest workaround:
 //!
 //!     a. For empty enum variants, use `Empty(..)` until
-//!     [#29383](https://github.com/rust-lang/rust/issues/29383) lands, after that include the enum
-//!     name as in `Enum::Empty`.
+//!     [#29383](https://github.com/rust-lang/rust/issues/29383) becomes an error, after that
+//!     include the enum name as in `Enum::Empty`.
 //!     b. For unit-like structs, use `Empty(..)` until
-//!     [#29383](https://github.com/rust-lang/rust/issues/29383) lands, after that namespace it as
-//!     in `namespace::Empty`, or use `Empty{}` (requires `#![feature(braced_empty_structs)]`).
+//!     [#29383](https://github.com/rust-lang/rust/issues/29383) becomes an error, after that
+//!     namespace it as in `namespace::Empty`, or use `Empty{}` (requires `#![feature(braced_empty_structs)]`).
 //! 3. `PAT` cannot be irrefutable. This is the same behavior as `if let` and `match`, and it's
 //!    useless to write a guard with an irrefutable pattern anyway (you can just use `let`), so
 //!    this shouldn't be an issue. This is slightly more annoying than it could be due to
@@ -421,12 +422,12 @@ mod tests {
     #[test]
     fn empty() {
         use self::Stuff::D;
-        //struct Empty;
+        struct Empty;
 
         let dopt = D;
 
         guard!({ return } unless dopt => D(..));
-        //guard!({ return } unless Some(Empty) => Some(Empty(..))); // FIXME broken by #29383
+        guard!({ return } unless Some(Empty) => Some(Empty(..))); // FIXME broken by #29383
     }
 
     #[cfg(feature = "nightly")]
