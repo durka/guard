@@ -1,6 +1,6 @@
 [package]
 name = "guard"
-version = "0.2.6"
+version = "0.3.0"
 authors = ["Alex Burka <rust@alexburka.com>"]
 
 description = "Macro implementation of RFC 1303: a guard-let-else statement a la Swift"

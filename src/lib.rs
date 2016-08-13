@@ -9,6 +9,8 @@
 
 #![cfg_attr(feature = "debug", feature(trace_macros))]
 
+#![cfg_attr(not(test), no_std)]
+
 //!  This crate exports a macro which implements most of [RFC 1303](https://github.com/rust-lang/rfcs/pull/1303) (a "let-else" or "guard"
 //!  expression as you can find in Swift).
 //!
