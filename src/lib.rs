@@ -1,15 +1,15 @@
 #![cfg_attr(all(test, feature = "nightly"), feature(stmt_expr_attributes,
-                                                    braced_empty_structs,
                                                     box_syntax,
                                                     box_patterns,
                                                     slice_patterns,
                                                     advanced_slice_patterns
                                                    ))]
-#![cfg_attr(all(test, not(feature = "nightly")), allow(match_of_unit_variant_via_paren_dotdot))]
 
 #![cfg_attr(feature = "debug", feature(trace_macros))]
 
 #![cfg_attr(not(test), no_std)]
+
+#![cfg_attr(test, deny(warnings))]
 
 //!  This crate exports a macro which implements most of [RFC 1303](https://github.com/rust-lang/rfcs/pull/1303) (a "let-else" or "guard"
 //!  expression as you can find in Swift).
@@ -72,15 +72,10 @@
 //!    identifiers. It's easy to get around this restriction: use a pattern guard (as in `match`)
 //!    instead.
 //! 2. Empty, un-namespaced enum variants and structs cause the expansion to fail, because the
-//!    macro thinks they are identifiers. It's possible to get around this as well, though an open
-//!    PR is aiming to take away the easiest workaround:
+//!    macro thinks they are identifiers. It's possible to get around this as well:
 //!
-//!     a. For empty enum variants, use `Empty(..)` until
-//!     [#29383](https://github.com/rust-lang/rust/issues/29383) becomes an error, after that
-//!     include the enum name as in `Enum::Empty`.
-//!     b. For unit-like structs, use `Empty(..)` until
-//!     [#29383](https://github.com/rust-lang/rust/issues/29383) becomes an error, after that
-//!     namespace it as in `namespace::Empty`, or use `Empty{}` (requires `#![feature(braced_empty_structs)]`).
+//!     a. For empty enum variants, include the enum name as in `Enum::Empty`.
+//!     b. For unit-like structs, namespace it as in `namespace::Empty`, or use `Empty {}`.
 //! 3. `PAT` cannot be irrefutable. This is the same behavior as `if let` and `match`, and it's
 //!    useless to write a guard with an irrefutable pattern anyway (you can just use `let`), so
 //!    this shouldn't be an issue. This is slightly more annoying than it could be due to
@@ -134,13 +129,11 @@ macro_rules! __guard_output {
                                                            ($($imms,)* $($muts,)*)
                                                        } else {
                                                            let _: $crate::LetElseBodyMustDiverge = $diverge;
-                                                           loop {}
                                                        }
                                                    },
 
                                                    _ => {
                                                        let _: $crate::LetElseBodyMustDiverge = $diverge;
-                                                       loop {}
                                                    },
                }
               )
@@ -420,19 +413,6 @@ mod tests {
         guard!({ return } unless dopt => self::Stuff::D);
     }
 
-    #[cfg(not(feature = "nightly"))]
-    #[test]
-    fn empty() {
-        use self::Stuff::D;
-        struct Empty;
-
-        let dopt = D;
-
-        guard!({ return } unless dopt => D(..));
-        guard!({ return } unless Some(Empty) => Some(Empty(..))); // FIXME broken by #29383
-    }
-
-    #[cfg(feature = "nightly")]
     #[test]
     fn empty() {
         use self::Stuff::D;
@@ -441,7 +421,7 @@ mod tests {
         let dopt = D;
 
         guard!({ return } unless dopt => D{});
-        guard!({ return } unless Some(Empty) => Some(Empty{}));
+        guard!({ return } unless Some(Empty) => Some(Empty {}));
     }
 
     #[cfg(feature = "nightly")]

@@ -28,6 +28,8 @@ fn main() {
 - `nightly` enables nightly tests and uses expression attributes in the expansion (see [RFC 16](https://github.com/rust-lang/rfcs/pull/16)).
 
   Requires `#![feature(stmt_expr_attributes)]` in the client crate.
+
+  Without this feature enabled, you will get two `unreachable_code` warnings on each invocation of the macro when using a nightly compiler.
 - `debug` enables `trace_macros` for debugging. Requires a nightly compiler (but not this crate's `nightly` feature).
 
 ## How it works
