@@ -21,9 +21,9 @@ script:
         cargo clippy --verbose --features "$FEATURES" &&
         echo "clippy: clean"
       else
-        true
+        echo "clippy: skipped"
       fi &&
-      if [ "$BENCH" != 1 ]; then
+      if [ "$BENCH" == 1 ]; then
         cargo bench --verbose --features "$FEATURES"
       fi
 
