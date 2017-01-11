@@ -17,9 +17,13 @@ script:
       cargo build --verbose --features "$FEATURES" &&
       cargo test --verbose --features "$FEATURES" &&
       if [[ "$TRAVIS_RUST_VERSION" == nightly* ]]; then
-        cargo install --verbose --force clippy &&
-        cargo clippy --verbose --features "$FEATURES" &&
-        echo "clippy: clean"
+        cargo install --verbose --force clippy;
+        if [ $? ]; then
+            cargo clippy --verbose --features "$FEATURES" &&
+            echo "clippy: clean"
+        else
+            echo "clippy: not installed"
+        fi
       else
         echo "clippy: skipped"
       fi &&
