@@ -1,14 +1,18 @@
 [package]
 name = "guard"
-version = "0.3.2"
+version = "0.3.3"
 authors = ["Alex Burka <rust@alexburka.com>"]
 
 description = "Macro implementation of RFC 1303: a guard-let-else statement a la Swift"
+categories = ["rust-patterns"]
 homepage = "https://github.com/durka/guard"
 repository = "https://github.com/durka/guard"
 readme = "README.md"
 license = "MIT/Apache-2.0"
 keywords = ["guard", "if", "let", "else", "1303"]
+
+[badges]
+travis-ci = { repository = "durka/guard" }
 
 [features]
 nightly = []
