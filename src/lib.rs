@@ -2,7 +2,6 @@
                                                     box_syntax,
                                                     box_patterns,
                                                     slice_patterns,
-                                                    advanced_slice_patterns
                                                    ))]
 
 #![cfg_attr(feature = "debug", feature(trace_macros))]
