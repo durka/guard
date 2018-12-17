@@ -1,13 +1,9 @@
-#![cfg_attr(all(test, feature = "nightly"), feature(stmt_expr_attributes,
-                                                    box_syntax,
-                                                    box_patterns,
-                                                    slice_patterns,
-                                                   ))]
-
+#![cfg_attr(
+    all(test, feature = "nightly"),
+    feature(stmt_expr_attributes, box_syntax, box_patterns, slice_patterns,)
+)]
 #![cfg_attr(feature = "debug", feature(trace_macros))]
-
 #![cfg_attr(not(test), no_std)]
-
 #![cfg_attr(test, deny(warnings))]
 #![cfg_attr(test, allow(unreachable_code))]
 
@@ -40,7 +36,7 @@
 //! // do nothing if the variable is missing
 //! guard!(let Ok(foo) = env::var("FOO")
 //!        else { return });
-//! 
+//!
 //! println!("FOO = {}", foo);
 //! # }
 //! ```
@@ -65,7 +61,7 @@
 //! never executes if the pattern doesn't match).
 //!
 //! ## Limitations
-//! 
+//!
 //! 1. Expressions in the pattern are _not_ supported. This is a limitation of the current Rust
 //!    macro system -- I'd like to say "parse an identifier in this position, but if that fails try
 //!    parsing an expression" but this is is impossible; I can only test for _specific_
@@ -91,7 +87,7 @@ pub enum LetElseBodyMustDiverge {}
 
 #[cfg(not(feature = "nightly"))]
 #[doc(hidden)]
-#[macro_export]
+#[macro_export(local_inner_macros)]
 macro_rules! __guard_output {
     ((($($imms:ident)*) ($($muts:ident)*)), [($($guard:tt)*) ($($pattern:tt)*) ($rhs:expr) ($diverge:expr)]) => {
         __guard_impl!(@as_stmt
@@ -118,7 +114,7 @@ macro_rules! __guard_output {
 
 #[cfg(feature = "nightly")]
 #[doc(hidden)]
-#[macro_export]
+#[macro_export(local_inner_macros)]
 macro_rules! __guard_output {
     ((($($imms:ident)*) ($($muts:ident)*)), [($($guard:tt)*) ($($pattern:tt)*) ($rhs:expr) ($diverge:expr)]) => {
         __guard_impl!(@as_stmt
@@ -141,7 +137,7 @@ macro_rules! __guard_output {
 }
 
 #[doc(hidden)]
-#[macro_export]
+#[macro_export(local_inner_macros)]
 macro_rules! __guard_impl {
     // 0. cast a series of token trees to a statement
     (@as_stmt $s:stmt) => { $s; };
@@ -207,7 +203,7 @@ macro_rules! __guard_impl {
     };
 
     // throw away some identifiers that do not represent captures
-    
+
     // box destructuring
     (@collect (box $($tail:tt)*) -> $idents:tt, $thru:tt) => {
         __guard_impl!(@collect ($($tail)*) -> $idents, $thru)
@@ -304,7 +300,7 @@ macro_rules! __guard_impl {
     };
 
     // 4. entry points
-    
+
     // old syntax
     ({ $($diverge:tt)* } unless $rhs:expr => $($pattern:tt)*) => {
         __guard_impl!(@collect ($($pattern)*) -> (() ()), [(true) ($($pattern)*) ($rhs) ({$($diverge)*})])
@@ -350,7 +346,7 @@ macro_rules! __guard_impl {
 /// - `rhs`: expression to match against the pattern
 /// - `pattern`: pattern. Most patterns are allowed, with a few limitations. See the module
 /// documentation for details.
-#[macro_export]
+#[macro_export(local_inner_macros)]
 macro_rules! guard {
     ($($input:tt)*) => {
         __guard_impl!($($input)*)
@@ -364,50 +360,77 @@ mod tests {
         A(Option<i32>, Option<i32>),
         B { foo: Result<i32, i32>, bar: i32 },
         C(i32),
-        D
+        D,
     }
 
-    #[derive(Copy, Clone)] struct Point { x: i32, y: i32 }
-    struct Person { name: Option<String> }
+    #[derive(Copy, Clone)]
+    struct Point {
+        x: i32,
+        y: i32,
+    }
+    struct Person {
+        name: Option<String>,
+    }
 
     #[test]
     fn various() {
         let origin = Point { x: 0, y: 0 };
-        let p = Some(Person { name: Some("Steve".to_owned()) });
+        let p = Some(Person {
+            name: Some("Steve".to_owned()),
+        });
         let opt = Stuff::A(Some(42), Some(43));
         let copt = Stuff::C(42);
         let dopt = Stuff::D;
-        let mut thing = Stuff::B { foo: Ok(44), bar: 45 };
+        let mut thing = Stuff::B {
+            foo: Ok(44),
+            bar: 45,
+        };
 
-        guard!({ return } unless Some(&42) => Some(&x));                                println!("{}", x);
+        guard!({ return } unless Some(&42) => Some(&x));
+        println!("{}", x);
 
-        guard!({ return } unless Stuff::C(42) => Stuff::B { bar, .. } | Stuff::C(bar)); println!("{}", bar);
+        guard!({ return } unless Stuff::C(42) => Stuff::B { bar, .. } | Stuff::C(bar));
+        println!("{}", bar);
 
-        guard!({ return } unless Some(42) => Some(x));                                  println!("{}", x);
+        guard!({ return } unless Some(42) => Some(x));
+        println!("{}", x);
 
-        guard!({ return } unless Some(origin) => Some(Point { x, y }));                 println!("{} {}", x, y);
+        guard!({ return } unless Some(origin) => Some(Point { x, y }));
+        println!("{} {}", x, y);
 
-        guard!({ return } unless Some(origin) => Some(Point { x: x1, y: y1 }));         println!("{} {}", x1, y1);
+        guard!({ return } unless Some(origin) => Some(Point { x: x1, y: y1 }));
+        println!("{} {}", x1, y1);
 
-        guard!({ return } unless Some(origin) => Some(Point { x, .. }));                println!("{}", x);
+        guard!({ return } unless Some(origin) => Some(Point { x, .. }));
+        println!("{}", x);
 
-        guard!({ return } unless Some(origin) => Some(Point { y: y1, .. }));            println!("{}", y1);
+        guard!({ return } unless Some(origin) => Some(Point { y: y1, .. }));
+        println!("{}", y1);
 
         // closest we can get to Point { x, y: 0 }
-        guard!({ return } unless origin => Point { x, y: _y } if _y == 0);              println!("{}", x);
+        guard!({ return } unless origin => Point { x, y: _y } if _y == 0);
+        println!("{}", x);
 
-        guard!({ return } unless p => Some(Person { name: ref x @ Some(_), .. }));      println!("{:?}", x);
+        guard!({ return } unless p => Some(Person { name: ref x @ Some(_), .. }));
+        println!("{:?}", x);
 
-        guard!({ return } unless (Some(42), Some(43)) => (Some(x), Some(y)));           println!("{} {}", x, y);
+        guard!({ return } unless (Some(42), Some(43)) => (Some(x), Some(y)));
+        println!("{} {}", x, y);
 
-        guard!({ return } unless opt => Stuff::A(Some(x), Some(y)));                    println!("{} {}", x, y);
+        guard!({ return } unless opt => Stuff::A(Some(x), Some(y)));
+        println!("{} {}", x, y);
 
-        guard!({ return } unless opt => Stuff::A(Option::Some::<i32>(x), _));           println!("{}", x);
-        
-        guard!({ return } unless thing => Stuff::B { foo: Ok(ref mut x), .. });         *x += 1; println!("{}", x);
+        guard!({ return } unless opt => Stuff::A(Option::Some::<i32>(x), _));
+        println!("{}", x);
 
-        guard!({ return } unless thing => self::Stuff::B { foo: Ok(mut x), .. });       x *= 2; println!("{}", x);
-        
+        guard!({ return } unless thing => Stuff::B { foo: Ok(ref mut x), .. });
+        *x += 1;
+        println!("{}", x);
+
+        guard!({ return } unless thing => self::Stuff::B { foo: Ok(mut x), .. });
+        x *= 2;
+        println!("{}", x);
+
         guard!({ return } unless copt => Stuff::C(_));
 
         guard!({ return } unless dopt => self::Stuff::D);
@@ -429,26 +452,33 @@ mod tests {
     fn nightly() {
         // box patterns
         let foo = (box 42, [1, 2, 3]);
-        guard!({ return } unless Some(foo) => Some((box x, _)));                           println!("{}", x);
+        guard!({ return } unless Some(foo) => Some((box x, _)));
+        println!("{}", x);
 
         let mut foo = Some((box 42, [1, 2, 3]));
         {
-            guard!({ return } unless foo => Some((box ref x, _)));                         println!("{}", x);
+            guard!({ return } unless foo => Some((box ref x, _)));
+            println!("{}", x);
         }
         {
-            guard!({ return } unless foo => Some((box ref mut x, _)));                     println!("{}", x);
+            guard!({ return } unless foo => Some((box ref mut x, _)));
+            println!("{}", x);
         }
         {
-            guard!({ return } unless foo => Some((box mut x, _)));                         x -= 1; println!("{}", x);
+            guard!({ return } unless foo => Some((box mut x, _)));
+            x -= 1;
+            println!("{}", x);
         }
 
         // slice patterns
         let foo = (box 42, [1, 2, 3]);
-        guard!({ return } unless Some(foo) => Some((_, [a, b, c])));                       println!("{} {} {}", a, b, c);
-        
+        guard!({ return } unless Some(foo) => Some((_, [a, b, c])));
+        println!("{} {} {}", a, b, c);
+
         // advanced slice patterns
         let foo = (box 42, [1, 2, 3]);
-        guard!({ return } unless Some((foo.0, &foo.1)) => Some((box x, &[head, tail..]))); println!("{} {} {:?}", x, head, tail);
+        guard!({ return } unless Some((foo.0, &foo.1)) => Some((box x, &[head, tail..])));
+        println!("{} {} {:?}", x, head, tail);
     }
 
     #[test]
@@ -456,16 +486,23 @@ mod tests {
         let opt = Some((1, 2));
 
         // LP=XED
-        guard!(let Some((a, b)) = opt else { panic!() });                           println!("{} {}", a, b);
-        guard!(let Some((a, b)) = if true  { opt } else { opt } else { panic!() }); println!("{} {}", a, b);
-        guard!(let Some((a, b)) = if false { opt } else { opt } else { panic!() }); println!("{} {}", a, b);
-        guard!(let Some((a, b)) if b > 0 = opt else { panic!() });                  println!("{} {}", a, b);
+        guard!(let Some((a, b)) = opt else { panic!() });
+        println!("{} {}", a, b);
+        guard!(let Some((a, b)) = if true  { opt } else { opt } else { panic!() });
+        println!("{} {}", a, b);
+        guard!(let Some((a, b)) = if false { opt } else { opt } else { panic!() });
+        println!("{} {}", a, b);
+        guard!(let Some((a, b)) if b > 0 = opt else { panic!() });
+        println!("{} {}", a, b);
 
         // LPED=X
-        guard!(let Some((a, b)) else { panic!() } = opt);                           println!("{} {}", a, b);
-        guard!(let Some((a, b)) else { panic!() } = if true  { opt } else { opt }); println!("{} {}", a, b);
-        guard!(let Some((a, b)) else { panic!() } = if false { opt } else { opt }); println!("{} {}", a, b);
-        guard!(let Some((a, b)) if b > 0 else { panic!() } = opt);                  println!("{} {}", a, b);
+        guard!(let Some((a, b)) else { panic!() } = opt);
+        println!("{} {}", a, b);
+        guard!(let Some((a, b)) else { panic!() } = if true  { opt } else { opt });
+        println!("{} {}", a, b);
+        guard!(let Some((a, b)) else { panic!() } = if false { opt } else { opt });
+        println!("{} {}", a, b);
+        guard!(let Some((a, b)) if b > 0 else { panic!() } = opt);
+        println!("{} {}", a, b);
     }
 }
-
