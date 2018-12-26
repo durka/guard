@@ -1,6 +1,6 @@
 #![cfg_attr(
     all(test, feature = "nightly"),
-    feature(stmt_expr_attributes, box_syntax, box_patterns, slice_patterns,)
+    feature(box_syntax, box_patterns, slice_patterns,)
 )]
 #![cfg_attr(feature = "debug", feature(trace_macros))]
 #![cfg_attr(not(test), no_std)]
@@ -27,7 +27,6 @@
 //! Example usage:
 //!
 //! ```rust
-#![cfg_attr(feature = "nightly", doc = "#![feature(stmt_expr_attributes)]")]
 //! #[macro_use] extern crate guard;
 //!
 //! # use std::env;
@@ -45,7 +44,6 @@
 //! you don't get a "cannot bind by-move" error:
 //!
 //! ```rust
-#![cfg_attr(feature = "nightly", doc = "# #![feature(stmt_expr_attributes)]")]
 //! # #[macro_use] extern crate guard;
 //! # use std::env;
 //! # fn main() {
@@ -85,40 +83,12 @@ trace_macros!(true);
 /// Uninhabitable type used to make an error message
 pub enum LetElseBodyMustDiverge {}
 
-#[cfg(not(feature = "nightly"))]
 #[doc(hidden)]
 #[macro_export(local_inner_macros)]
 macro_rules! __guard_output {
     ((($($imms:ident)*) ($($muts:ident)*)), [($($guard:tt)*) ($($pattern:tt)*) ($rhs:expr) ($diverge:expr)]) => {
         __guard_impl!(@as_stmt
-               let ($($imms,)* $(mut $muts,)*) = match $rhs {
-                                                   $($pattern)* => {
-                                                       if $($guard)* { // move the guard inside to avoid "cannot bind by-move"
-                                                           $($muts = $muts;)* // this defeats the "unused mut" warning
-                                                           ($($imms,)* $($muts,)*)
-                                                       } else {
-                                                           let _x: $crate::LetElseBodyMustDiverge = $diverge;
-                                                           match _x {}
-                                                       }
-                                                   },
-
-                                                   _ => {
-                                                       let _x: $crate::LetElseBodyMustDiverge = $diverge;
-                                                       match _x {}
-                                                       // FIXME use the unreachable crate?
-                                                   },
-               }
-              )
-    };
-}
-
-#[cfg(feature = "nightly")]
-#[doc(hidden)]
-#[macro_export(local_inner_macros)]
-macro_rules! __guard_output {
-    ((($($imms:ident)*) ($($muts:ident)*)), [($($guard:tt)*) ($($pattern:tt)*) ($rhs:expr) ($diverge:expr)]) => {
-        __guard_impl!(@as_stmt
-               let ($($imms,)* $(mut $muts,)*) = #[allow(unused_mut)]
+               let ($($imms,)* $(mut $muts,)*) = { #[allow(unused_mut)]
                                                  match $rhs {
                                                    $($pattern)* => {
                                                        if $($guard)* { // move the guard inside to avoid "cannot bind by-move"
@@ -131,7 +101,7 @@ macro_rules! __guard_output {
                                                    _ => {
                                                        let _: $crate::LetElseBodyMustDiverge = $diverge;
                                                    },
-               }
+               } }
               )
     };
 }
