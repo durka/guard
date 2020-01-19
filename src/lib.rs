@@ -110,7 +110,7 @@ macro_rules! __guard_output {
 #[macro_export(local_inner_macros)]
 macro_rules! __guard_impl {
     // 0. cast a series of token trees to a statement
-    (@as_stmt $s:stmt) => { $s; };
+    (@as_stmt $s:stmt) => { $s };
 
     // 1. output stage
     (@collect () -> $($rest:tt)*) => {
