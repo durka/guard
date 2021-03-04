@@ -77,6 +77,8 @@
 //!    ever fixed, irrefutable patterns could be allowed by inserting a no-op pattern guard into
 //!    the expansion.
 
+mod assert_guard;
+
 #[cfg(feature = "debug")]
 trace_macros!(true);
 
