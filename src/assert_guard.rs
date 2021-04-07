@@ -28,6 +28,9 @@
 ///
 /// Note that `Option::None` is used instead of `None` to work around the limitations
 /// of accepted patterns. See [`guard`](crate#limitations) for details.
+///
+/// Also note that this macro is mostly provided for destructuring enums in tests.
+/// In production code it's usually better to handle all variants of enums explicitly.
 #[macro_export]
 macro_rules! assert_guard {
     ($($input:tt)*) => {
