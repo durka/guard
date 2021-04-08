@@ -35,20 +35,13 @@
 macro_rules! guard_unwrap {
     ($($input:tt)*) => {
         $crate::guard!(
-            $($input)* else { $crate::guard_unwrap_panic!($($input)*) }
+            $($input)* else {
+                panic!(
+                    "called `guard_unwrap!({})` on a mismatching value`",
+                    stringify!($($input)*),
+                )
+            }
         );
-    };
-}
-
-#[macro_export]
-#[doc(hidden)]
-macro_rules! guard_unwrap_panic {
-    (let $pattern:pat = $expression:expr) => {
-        panic!(
-            "assertion failed: `let {} = {}`",
-            stringify!($pattern),
-            stringify!($expression),
-        )
     };
 }
 
@@ -89,7 +82,9 @@ mod test {
     }
 
     #[test]
-    #[should_panic(expected = "assertion failed: `let Some(_) = foo(bar)`")]
+    #[should_panic(
+        expected = "called `guard_unwrap!(let Some(_) = foo(bar))` on a mismatching value"
+    )]
     fn should_have_nice_panic_message() {
         let bar = true;
         fn foo(_: bool) -> Option<()> {
