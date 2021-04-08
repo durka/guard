@@ -6,7 +6,7 @@ This crate exports a macro which implements most of [RFC 1303](https://github.co
 
 The syntax proposed in the RFC was `if !let PAT = EXPR { BODY }` or `let PAT = EXPR else { BODY }` (where `BODY` _must_ diverge). This macro understands the latter syntax, as well as a variation proposed in the RFC with the `else` clause in the middle.
 
-The crate also implements an assert variant `assert_guard` that panics if the match fails.
+The crate also implements a variant `guard_unwrap` that panics if the match fails.
 
 ## Examples
 

@@ -1,8 +1,8 @@
 extern crate guard;
 
-use guard::assert_guard;
+use guard::guard_unwrap;
 
 #[test]
 fn should_be_usable_from_different_crate() {
-    assert_guard!(let Some(_) = Some(()));
+    guard_unwrap!(let Some(_) = Some(()));
 }

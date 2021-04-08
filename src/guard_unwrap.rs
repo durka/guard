@@ -15,15 +15,15 @@
 ///
 /// ```
 /// #[macro_use] extern crate guard;
-/// assert_guard!(let Some(foo) = Some(42));
+/// guard_unwrap!(let Some(foo) = Some(42));
 /// assert_eq!(foo, 42);
 /// ```
 ///
-/// Here's an example of a failing match that causes [`assert_guard`] to panic.
+/// Here's an example of a failing match that causes [`guard_unwrap`] to panic.
 ///
 /// ``` should_panic
 /// #[macro_use] extern crate guard;
-/// assert_guard!(let Option::None = Some(42));
+/// guard_unwrap!(let Option::None = Some(42));
 /// ```
 ///
 /// Note that `Option::None` is used instead of `None` to work around the limitations
@@ -32,17 +32,17 @@
 /// Also note that this macro is mostly provided for destructuring enums in tests.
 /// In production code it's usually better to handle all variants of enums explicitly.
 #[macro_export]
-macro_rules! assert_guard {
+macro_rules! guard_unwrap {
     ($($input:tt)*) => {
         $crate::guard!(
-            $($input)* else { $crate::assert_guard_panic!($($input)*) }
+            $($input)* else { $crate::guard_unwrap_panic!($($input)*) }
         );
     };
 }
 
 #[macro_export]
 #[doc(hidden)]
-macro_rules! assert_guard_panic {
+macro_rules! guard_unwrap_panic {
     (let $pattern:pat = $expression:expr) => {
         panic!(
             "assertion failed: `let {} = {}`",
@@ -57,13 +57,13 @@ mod test {
     #[test]
     fn should_match() {
         let val: Option<()> = None;
-        assert_guard!(let Option::None = val);
+        guard_unwrap!(let Option::None = val);
     }
 
     #[test]
     fn should_bind() {
         let val = Some(42);
-        assert_guard!(let Some(n) = val);
+        guard_unwrap!(let Some(n) = val);
         assert_eq!(n, 42);
     }
 
@@ -71,21 +71,21 @@ mod test {
     #[should_panic]
     fn should_panic() {
         let val: Option<()> = None;
-        assert_guard!(let Some(_) = val);
+        guard_unwrap!(let Some(_) = val);
     }
 
     #[test]
     #[should_panic(expected = "Some(_)")]
     fn panic_message_should_include_pattern() {
         let val: Option<()> = None;
-        assert_guard!(let Some(_) = val);
+        guard_unwrap!(let Some(_) = val);
     }
 
     #[test]
     #[should_panic(expected = "val")]
     fn panic_message_should_include_matched_expression() {
         let val: Option<()> = None;
-        assert_guard!(let Some(_) = val);
+        guard_unwrap!(let Some(_) = val);
     }
 
     #[test]
@@ -95,6 +95,6 @@ mod test {
         fn foo(_: bool) -> Option<()> {
             None
         }
-        assert_guard!(let Some(_) = foo(bar));
+        guard_unwrap!(let Some(_) = foo(bar));
     }
 }
