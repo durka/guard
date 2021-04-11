@@ -6,6 +6,8 @@ This crate exports a macro which implements most of [RFC 1303](https://github.co
 
 The syntax proposed in the RFC was `if !let PAT = EXPR { BODY }` or `let PAT = EXPR else { BODY }` (where `BODY` _must_ diverge). This macro understands the latter syntax, as well as a variation proposed in the RFC with the `else` clause in the middle.
 
+The crate also implements a variant `guard_unwrap` that panics if the match fails.
+
 ## Examples
 
 ```rust
@@ -42,4 +44,3 @@ There are a number of subtleties in the expansion to avoid various warning and p
     - For unit-like structs, use `Empty(..)` until [#29383](https://github.com/rust-lang/rust/issues/29383) turns into an error, after that namespace it as in `namespace::Empty`, or use `Empty{}` (requires `#![feature(braced_empty_structs)]`). (For now you will get a warning.)
     - Of course you can also use a path to reference the variant or struct, though this may be impossible (if it's local to a function/block) or inconvenient (if it was imported from another module or crate).
 3. `PAT` cannot be irrefutable. This is the same behavior as `if let` and `match`, and it's useless to write a guard with an irrefutable pattern anyway (you can just use `let`), so this shouldn't be an issue. This is slightly more annoying than it could be due to limitation #1. Nonetheless, if [#14252](https://github.com/rust-lang/rust/issues/14252) is ever fixed, irrefutable patterns could be allowed by inserting a no-op pattern guard into the expansion.
-
