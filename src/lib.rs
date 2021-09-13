@@ -477,4 +477,49 @@ mod tests {
         guard!(let Some((a, b)) if b > 0 else { panic!() } = opt);
         println!("{} {}", a, b);
     }
+
+    #[test]
+    fn rfc_runpass() {
+        // The run-pass tests from #87688 implementing RFC 3137, ported to use the macro
+        // TODO: set up cfail infra and run those tests too
+
+        #[allow(dead_code)]
+        enum MyEnum {
+            A(&'static str),
+            B { f: &'static str },
+            C,
+        }
+
+        // ref binding to non-copy value and or-pattern
+        // NOTE: differences from the rustc test
+        //          - parens not necessary
+        //          - ref binding to non-copy value not supported
+        guard!(let MyEnum::A(ref x) | MyEnum::B { f: ref x } = MyEnum::B { f: "" } else {
+            panic!();
+        });
+        assert_eq!(*x, "");
+
+        // nested let-else
+        // NOTE: differences from the rustc test
+        //          - irrefutable patterns not supported
+        //          - expressions in pattern not supported
+        let mut x = 1;
+        loop {
+            guard!(let Some(_y) if _y == 4 = Some(x) else {
+                guard!(let Some(_y) if _y == 3 = Some(x) else {
+                    x += 1;
+                    continue;
+                });
+                break;
+            });
+            panic!();
+        }
+        assert_eq!(x, 3);
+
+        // else return
+        // NOTE: differences from the rustc test
+        //          - irrefutable patterns not supported
+        guard!(let Option::None = Some(2) else { return });
+        panic!();
+    }
 }

@@ -2,9 +2,11 @@
 
 [![Travis CI](https://travis-ci.org/durka/guard.svg)](https://travis-ci.org/durka/guard)
 
-This crate exports a macro which implements most of [RFC 1303](https://github.com/rust-lang/rfcs/pull/1303) (a "let-else" or "guard" expression as you can find in Swift).
+**This feature has finally been officially added to Rust. This crate should be considered deprecated once `#![feature(let_else)]` is stabilized.**
 
-The syntax proposed in the RFC was `if !let PAT = EXPR { BODY }` or `let PAT = EXPR else { BODY }` (where `BODY` _must_ diverge). This macro understands the latter syntax, as well as a variation proposed in the RFC with the `else` clause in the middle.
+This crate exports a macro which implements most of [RFC 3137](https://github.com/rust-lang/rfcs/pull/3137) (originally [RFC 1303](https://github.com/rust-lang/rfcs/pull/1303)), a "let-else" or "guard" expression as you can find in Swift.
+
+The syntax decided upon in the RFC is `let PAT = EXPR else { BODY }` (where `BODY` _must_ diverge). This macro understands mostly what has been implemented in the compiler, with a few limitations detailed below, as well as a variation proposed in the first RFC with the `else` clause in the middle.
 
 The crate also implements a variant `guard_unwrap` that panics if the match fails.
 
@@ -44,3 +46,9 @@ There are a number of subtleties in the expansion to avoid various warning and p
     - For unit-like structs, use `Empty(..)` until [#29383](https://github.com/rust-lang/rust/issues/29383) turns into an error, after that namespace it as in `namespace::Empty`, or use `Empty{}` (requires `#![feature(braced_empty_structs)]`). (For now you will get a warning.)
     - Of course you can also use a path to reference the variant or struct, though this may be impossible (if it's local to a function/block) or inconvenient (if it was imported from another module or crate).
 3. `PAT` cannot be irrefutable. This is the same behavior as `if let` and `match`, and it's useless to write a guard with an irrefutable pattern anyway (you can just use `let`), so this shouldn't be an issue. This is slightly more annoying than it could be due to limitation #1. Nonetheless, if [#14252](https://github.com/rust-lang/rust/issues/14252) is ever fixed, irrefutable patterns could be allowed by inserting a no-op pattern guard into the expansion.
+
+### Differences with the [rustc implementation](https://github.com/rust-lang/rust/pull/87688)
+
+- Parentheses around or-patterns are not necessary
+- Cannot use a `ref` binding to a non-copy value (you'll get a borrowck error)
+
