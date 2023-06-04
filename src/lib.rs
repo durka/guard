@@ -1,6 +1,6 @@
 #![cfg_attr(
     all(test, feature = "nightly"),
-    feature(box_syntax, box_patterns)
+    feature(box_patterns)
 )]
 #![cfg_attr(feature = "debug", feature(trace_macros))]
 #![cfg_attr(not(test), no_std)]
@@ -423,11 +423,11 @@ mod tests {
     #[test]
     fn nightly() {
         // box patterns
-        let foo = (box 42, [1, 2, 3]);
+        let foo = (Box::new(42), [1, 2, 3]);
         guard!({ return } unless Some(foo) => Some((box x, _)));
         println!("{}", x);
 
-        let mut foo = Some((box 42, [1, 2, 3]));
+        let mut foo = Some((Box::new(42), [1, 2, 3]));
         {
             guard!({ return } unless foo => Some((box ref x, _)));
             println!("{}", x);
@@ -443,12 +443,12 @@ mod tests {
         }
 
         // slice patterns
-        let foo = (box 42, [1, 2, 3]);
+        let foo = (Box::new(42), [1, 2, 3]);
         guard!({ return } unless Some(foo) => Some((_, [a, b, c])));
         println!("{} {} {}", a, b, c);
 
         // advanced slice patterns
-        let foo = (box 42, [1, 2, 3]);
+        let foo = (Box::new(42), [1, 2, 3]);
         guard!({ return } unless Some((foo.0, &foo.1)) => Some((box x, &[head, tail @ ..])));
         println!("{} {} {:?}", x, head, tail);
     }
